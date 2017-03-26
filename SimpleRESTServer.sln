@@ -1,0 +1,23 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2012
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SimpleRESTServer", "SimpleRESTServer\SimpleRESTServer.csproj", "{174736A7-6A1A-4B79-814C-E7478B620BF3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sample", "Sample\Sample.csproj", "{9CBE6BD4-7C85-413B-AED6-792D0BAC1917}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{174736A7-6A1A-4B79-814C-E7478B620BF3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{174736A7-6A1A-4B79-814C-E7478B620BF3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{174736A7-6A1A-4B79-814C-E7478B620BF3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{174736A7-6A1A-4B79-814C-E7478B620BF3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9CBE6BD4-7C85-413B-AED6-792D0BAC1917}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9CBE6BD4-7C85-413B-AED6-792D0BAC1917}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9CBE6BD4-7C85-413B-AED6-792D0BAC1917}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9CBE6BD4-7C85-413B-AED6-792D0BAC1917}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
