@@ -96,6 +96,14 @@ namespace SimpleRESTServer
 		}
 
 		/// <summary>
+		/// Sets response status code to not found.
+		/// </summary>
+		public void NotFound()
+		{
+			Response.StatusCode = (int) HttpStatusCode.NotFound;
+		}
+
+		/// <summary>
 		/// Sets response status code to ok.
 		/// </summary>
 		public void Ok()
