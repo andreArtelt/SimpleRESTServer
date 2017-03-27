@@ -68,7 +68,8 @@ the *role* a user has to be in if he wants to access this method (**Note:** Assi
 
 A method implementing a route does not return anything. Instead a method can manipulate the response
 by using one of the predefined methods in the base class ``Controller`` or by accessing the response
-via ``Response`` (*Note:* You can access the request by ``Request`` and the user manager by ``UserMgr``).
+via ``Response`` (*Note:* You can access the request by ``Request``, the user manager by ``UserMgr`` and
+the current user by ``CurrentUser``).
 
 **Attention:** You have are responsible that your methods are thread safe!
 ```cs

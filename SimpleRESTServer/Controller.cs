@@ -42,6 +42,14 @@ namespace SimpleRESTServer
 			}
 		}
 
+		public User CurrentUser
+		{
+			get
+			{
+				return (User) Thread.CurrentPrincipal;
+			}
+		}
+
 		/// <summary>
 		/// Gets the cookies from the request.
 		/// </summary>
