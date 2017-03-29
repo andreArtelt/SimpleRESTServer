@@ -152,10 +152,10 @@ namespace SimpleRESTServer
 
 			// Serialize object
 			string strData = JsonConvert.SerializeObject(a_oData);
-			Response.ContentLength64 = strData.Length;
-			Response.ContentType = "application/json";
-			using (TextWriter oWriter = new StreamWriter(Response.OutputStream))
-				oWriter.Write(strData);
+
+			byte[] data = System.Text.Encoding.UTF8.GetBytes(strData);
+
+			Ok(data, "application/json; charset=utf-8", "identity");
 		}
 	}
 }
