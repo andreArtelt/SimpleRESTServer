@@ -70,7 +70,8 @@ namespace SimpleRESTServer
 					// ATTENTION: Assume one RoutingAttribute per method!
 					var oRoutingAttrib = customAttribs[0] as RoutingAttribute;
 
-					dictResult.Add(oRoutingAttrib.Path, oCtrl);
+					if(dictResult.ContainsKey(oRoutingAttrib.Path) == false)	// ATTENTION: Assure one controller per route (identical routes have to be in the same controller!)
+						dictResult.Add(oRoutingAttrib.Path, oCtrl);
 				}
 			}
 
