@@ -6,6 +6,7 @@ using System.Web;
 using System.Threading;
 using System.Reflection;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using Newtonsoft.Json;
 
 namespace SimpleRESTServer
@@ -25,6 +26,10 @@ namespace SimpleRESTServer
 		protected HttpListener m_oListener;
 		protected EAuthenticationTypes m_eAuthenticationType;
 		protected IEnumerable<string> m_lPrefixes;
+		protected IDictionary<string, Controller> m_dictControllerPaths;
+		public static string AuthCookieName = "auth";
+		public static string AuthKeyName = "key";
+		public static string AuthAnonymousUserName = "Anonymous";
 
 		/// <summary>
 		/// Initializes a new instance of the <see cref="SimpleRESTServer.Server"/> class.
@@ -78,6 +83,63 @@ namespace SimpleRESTServer
 			return dictResult;
 		}
 
+		protected User handleAuthentication(ref HttpListenerRequest a_oRequest, ref HttpListenerContext ctx)
+		{
+			User oUser = null;
+			
+			if (m_eAuthenticationType == EAuthenticationTypes.eCookie)
+			{
+				Cookie oAuthCookie = a_oRequest.Cookies [AuthCookieName];
+				if (oAuthCookie != null)
+				{
+					if(!oAuthCookie.Expired)
+						oUser = m_oUserMgr.GetUserByCookie (oAuthCookie.Value);
+				}
+			}
+			else if (m_eAuthenticationType == EAuthenticationTypes.eBasic)
+			{
+				if (ctx.User != null && ctx.User.Identity.IsAuthenticated)
+				{
+					HttpListenerBasicIdentity oIdentity = (HttpListenerBasicIdentity)ctx.User.Identity;
+					oUser = m_oUserMgr.GetUserByLogin (oIdentity.Name, oIdentity.Password);
+				}
+			}
+			else if(m_eAuthenticationType == EAuthenticationTypes.eKey)
+			{
+				if(a_oRequest.Headers.AllKeys.Contains(AuthKeyName))
+					oUser = m_oUserMgr.GetUserByKey(a_oRequest.Headers[AuthKeyName]);
+			}
+
+			if(oUser == null)
+				oUser = new User("", new string[]{AuthAnonymousUserName}, false);
+
+			// Set name to client ip addr if authentication failed (e.g. wrong login or anonymous user)
+			if (oUser.IsAuthenticated == false)
+				oUser.Name = a_oRequest.RemoteEndPoint.ToString();
+
+			return oUser;
+		}
+
+		protected void parseRequest(ref HttpListenerRequest a_oRequest, ref string a_strMethodName, ref string a_strParam, ref NameValueCollection a_dictParamValues, ref string a_strBody)
+		{
+			a_strMethodName = a_oRequest.Url.LocalPath;
+			a_strParam = null;
+			if(m_dictControllerPaths.ContainsKey(a_strMethodName) == false)	// If method path can not be found: Maybe last segment is an argument
+			{
+				a_strParam = a_oRequest.Url.Segments.Last();
+				a_strMethodName = a_strMethodName.Replace("/" + a_strParam, "");
+			}
+			a_dictParamValues = HttpUtility.ParseQueryString(a_oRequest.Url.Query);
+
+			// Read body (if available)
+			a_strBody = "";
+			if(a_oRequest.HasEntityBody)
+			{
+				using (var oReader = new StreamReader(a_oRequest.InputStream, a_oRequest.ContentEncoding))
+					a_strBody = oReader.ReadToEnd();
+			}
+		}
+
 		/// <summary>
 		/// Run the sever.
 		/// </summary>
@@ -107,7 +169,7 @@ namespace SimpleRESTServer
 			}
 
 			// Collect method paths
-			var dictControllerPaths = collectControllerPaths();
+			m_dictControllerPaths = collectControllerPaths();
 
 			// Start server
 			m_oListener.Start();
@@ -135,63 +197,22 @@ namespace SimpleRESTServer
 						HttpListenerRequest oRequest = ctx.Request;
 
 						// Get current user
-						User oUser = null;
-						if (m_eAuthenticationType == EAuthenticationTypes.eCookie)
-						{
-							Cookie oAuthCookie = oRequest.Cookies ["auth"];
-							if (oAuthCookie != null)
-							{
-								if(!oAuthCookie.Expired)
-									oUser = m_oUserMgr.GetUserByCookie (oAuthCookie.Value);
-							}
-						}
-						else if (m_eAuthenticationType == EAuthenticationTypes.eBasic)
-						{
-							if (ctx.User != null && ctx.User.Identity.IsAuthenticated)
-							{
-								HttpListenerBasicIdentity oIdentity = (HttpListenerBasicIdentity)ctx.User.Identity;
-								oUser = m_oUserMgr.GetUserByLogin (oIdentity.Name, oIdentity.Password);
-							}
-						}
-						else if(m_eAuthenticationType == EAuthenticationTypes.eKey)
-						{
-							if(oRequest.Headers.AllKeys.Contains("key"))
-								oUser = m_oUserMgr.GetUserByKey(oRequest.Headers["key"]);
-						}
-
-						if(oUser == null)
-							oUser = new User("", new string[]{"Anonymous"}, false);
-
-						// Set name to client ip addr if authentication failed (e.g. wrong login or anonymous user)
-						if (oUser.IsAuthenticated == false)
-							oUser.Name = oRequest.RemoteEndPoint.ToString();
+						User oUser = handleAuthentication(ref oRequest, ref ctx);
 						
 						Thread.CurrentPrincipal = oUser;
 
 						// Extract method name and arguments from url
-						string strMethodName = oRequest.Url.LocalPath;
-						string strParam = null;
-						if(dictControllerPaths.ContainsKey(strMethodName) == false)	// If method path can not be found: Maybe last segment is an argument
-						{
-							strParam = oRequest.Url.Segments.Last();
-							strMethodName = strMethodName.Replace("/" + strParam, "");
-						}
-						var dictParamValues = HttpUtility.ParseQueryString(oRequest.Url.Query);
+						string strMethodName = "", strParam = "", strBody = "";
+						NameValueCollection dictParamValues = null;
 
-						// Read body (if available)
-						string strBody = "";
-						if(oRequest.HasEntityBody)
-						{
-							using (var oReader = new StreamReader(oRequest.InputStream, oRequest.ContentEncoding))
-								strBody = oReader.ReadToEnd();
-						}
+						parseRequest(ref oRequest, ref strMethodName, ref strParam, ref dictParamValues, ref strBody);
 
 						// Find method
 						MethodInfo oCtrlMethod = null;
-						if(dictControllerPaths.ContainsKey(strMethodName))
+						if(m_dictControllerPaths.ContainsKey(strMethodName))
 						{
 							// Check all methods of controller
-							var oCtrl = dictControllerPaths[strMethodName];
+							var oCtrl = m_dictControllerPaths[strMethodName];
 							MethodInfo[] methods = oCtrl.GetType().GetMethods();
 							foreach(MethodInfo method in methods)
 							{
@@ -234,8 +255,6 @@ namespace SimpleRESTServer
 												}
 												else if(string.IsNullOrEmpty(strBody) == false)
 												{
-													if(string.IsNullOrEmpty(strBody) == false)
-													{
 														// Json data?
 														if(oRequest.ContentType != null && oRequest.ContentType.Equals("application/json"))
 														{
@@ -250,9 +269,8 @@ namespace SimpleRESTServer
 																break;
 															}
 														}
-													}
-													else
-														methodParams[i] = strBody;
+														else
+															methodParams[i] = strBody;
 												}
 												else  // Method needs more arguments than given! => Send BadRequest error
 												{
