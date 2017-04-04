@@ -306,7 +306,7 @@ namespace SimpleRESTServer
 								
 						// Send error if no controller matched
 						if(oCtrlMethod == null)
-							ctx.Response.StatusCode = (int) HttpStatusCode.BadRequest;
+							ctx.Response.StatusCode = (int) HttpStatusCode.NotFound;
 					}
 					catch(Exception)
 					{
