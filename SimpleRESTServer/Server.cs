@@ -141,6 +141,28 @@ namespace SimpleRESTServer
 		}
 
 		/// <summary>
+		/// Allows or denies CORS (Overwrite this method to customize the behaviour).
+		/// </summary>
+		/// <param name="a_oContext">Http context.</param>
+		protected void allowCORS(ref HttpListenerContext a_oContext)
+		{
+			a_oContext.Response.Headers.Add("Access-Control-Allow-Origin", "*");
+		}
+
+		/// <summary>
+		/// Handles OPTIONS request.
+		/// </summary>
+		/// <returns>Returna <c>true</c> if no further handling of this request is required, <c>false</c> otherwise.</returns>
+		/// <param name="a_oContext">Http context.</param>
+		protected bool handleOptionsRequest(ref HttpListenerContext a_oContext)
+		{
+			a_oContext.Response.Headers.Add("Access-Control-Allow-Methods", "POST, GET, PUT, DELETE, OPTIONS");	// Allow "everything" by default
+			a_oContext.Response.Headers.Add("Access-Control-Request-Headers", "X-PINGOTHER, Content-Type");
+
+			return true;
+		}
+
+		/// <summary>
 		/// Run the sever.
 		/// </summary>
 		public void Run()
@@ -198,8 +220,18 @@ namespace SimpleRESTServer
 
 						// Get current user
 						User oUser = handleAuthentication(ref oRequest, ref ctx);
-						
+
 						Thread.CurrentPrincipal = oUser;
+
+						// Allow or deny CORS (Cross-Origin Resource Sharing)
+						allowCORS(ref ctx);
+
+						// Handle OPTIONS request
+						if(oRequest.HttpMethod.Equals("OPTIONS"))
+						{
+							if(handleOptionsRequest(ref ctx) == true)
+								return;
+						}
 
 						// Extract method name and arguments from url
 						string strMethodName = "", strParam = "", strBody = "";
