@@ -288,7 +288,7 @@ namespace SimpleRESTServer
 												else if(string.IsNullOrEmpty(strBody) == false)
 												{
 														// Json data?
-														if(oRequest.ContentType != null && oRequest.ContentType.Equals("application/json"))
+														if(oRequest.ContentType != null && oRequest.ContentType.Contains("application/json"))
 														{
 															try
 															{
