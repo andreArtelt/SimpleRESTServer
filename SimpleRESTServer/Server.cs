@@ -163,6 +163,123 @@ namespace SimpleRESTServer
 		}
 
 		/// <summary>
+		/// Finds the method & controller for a given request.
+		/// </summary>
+		/// <returns>The method (might be null if no suiteable method has been found. In this case appropriate response status codes are set!).</returns>
+		/// <param name="a_strMethodName">Name/Path of the requested method.</param>
+		/// <param name="a_oContext">Http context.</param>
+		protected MethodInfo findMethod(string a_strMethodName, ref HttpListenerContext a_oContext)
+		{
+			if(m_dictControllerPaths.ContainsKey(a_strMethodName))
+			{
+				// Check all methods of controller
+				var oCtrl = m_dictControllerPaths[a_strMethodName];
+				MethodInfo[] methods = oCtrl.GetType().GetMethods ();
+				foreach(MethodInfo method in methods)
+				{
+					object[] customAttribs = method.GetCustomAttributes(typeof(RoutingAttribute), true);
+					if(customAttribs.Length < 1)
+						continue;
+
+					// ATTENTION: Assume one RoutingAttribute per method!
+					var oRoutingAttrib = customAttribs[0] as RoutingAttribute;
+					if(oRoutingAttrib.Path.Equals(a_strMethodName))	 // Check name/path
+					{
+						if(oRoutingAttrib.Method.Method.Equals(a_oContext.Request.HttpMethod))   // Check type of http method
+						{
+							// Check if user is authorized to use this method
+							if(Thread.CurrentPrincipal.IsInRole(oRoutingAttrib.Role))
+								return method;
+							else  // Access denied!
+							{
+								a_oContext.Response.StatusCode = (int) HttpStatusCode.Unauthorized;
+								return null;
+							}
+						}
+					}
+				}
+			}
+
+			a_oContext.Response.StatusCode = (int) HttpStatusCode.NotFound;
+			return null;
+		}
+
+		/// <summary>
+		/// Execute a given method.
+		/// </summary>
+		/// <param name="a_oMethod">Method to be executed.</param>
+		/// <param name="a_strMethodName">Method name.</param>
+		/// <param name="a_strParam">Parameter for method (parsed in <see cref="parseRequest"/>).</param>
+		/// <param name="a_strBody">Body of request (parsed in <see cref="parseRequest"/>).</param>
+		/// <param name="a_dictParamValues">Collection of parameter and their values (parsed in <see cref="parseRequest"/>).</param>
+		/// <param name="a_oContext">Http context.</param>
+		protected void execMethod(MethodInfo a_oMethod, string a_strMethodName, string a_strParam, string a_strBody, NameValueCollection a_dictParamValues, ref HttpListenerContext a_oContext)
+		{
+			// Create arguments
+			ParameterInfo[] paramsInfo = a_oMethod.GetParameters();
+			object[] methodParams = new object[paramsInfo.Length];
+			for(int i=0; i != paramsInfo.Length; i++)
+			{
+				if(i == 0 && a_strParam != null)
+				{
+					methodParams[i] = Convert.ChangeType(a_strParam, paramsInfo[i].ParameterType);
+				}
+				else if(i < a_dictParamValues.AllKeys.Length)
+				{
+					if(a_dictParamValues.AllKeys.Contains(paramsInfo[i].Name))
+						methodParams[i] = Convert.ChangeType(a_dictParamValues[paramsInfo[i].Name], paramsInfo[i].ParameterType);
+					else   // Parameter not given in request!
+					{
+						methodParams = null;
+						a_oContext.Response.StatusCode = (int) HttpStatusCode.BadRequest;
+						break;
+					}
+					continue;
+				}
+				else if(string.IsNullOrEmpty(a_strBody) == false)
+				{
+					// Json data?
+					if(a_oContext.Request.ContentType != null && a_oContext.Request.ContentType.Contains("application/json"))
+					{
+						try
+						{
+							methodParams[i] = JsonConvert.DeserializeObject(a_strBody, paramsInfo[i].ParameterType);
+						}
+						catch(Exception)
+						{
+							methodParams = null;
+							a_oContext.Response.StatusCode = (int) HttpStatusCode.BadRequest;
+							break;
+						}
+					}
+					else
+						methodParams[i] = a_strBody;
+				}
+				else  // Method needs more arguments than given! => Send BadRequest error
+				{
+					a_oContext.Response.StatusCode = (int) HttpStatusCode.BadRequest;
+					methodParams = null;
+				}
+			}
+
+			if(methodParams != null)  // methodParams == null indicates bad request (see above)
+			{
+				// Execute method with arguments and creating response
+				try
+				{
+					Thread.SetData(Thread.GetNamedDataSlot("Response"), a_oContext.Response);
+					Thread.SetData(Thread.GetNamedDataSlot("Request"), a_oContext.Request);
+
+					a_oMethod.Invoke(m_dictControllerPaths[a_strMethodName], methodParams);
+				}
+				catch(Exception)
+				{
+					a_oContext.Response.StatusCode = (int) HttpStatusCode.InternalServerError;
+				}
+			}
+		}
+
+		/// <summary>
 		/// Run the sever.
 		/// </summary>
 		public void Run()
@@ -236,109 +353,16 @@ namespace SimpleRESTServer
 						// Extract method name and arguments from url
 						string strMethodName = "", strParam = "", strBody = "";
 						NameValueCollection dictParamValues = null;
-
+						
 						parseRequest(ref oRequest, ref strMethodName, ref strParam, ref dictParamValues, ref strBody);
 
 						// Find method
-						MethodInfo oCtrlMethod = null;
-						if(m_dictControllerPaths.ContainsKey(strMethodName))
-						{
-							// Check all methods of controller
-							var oCtrl = m_dictControllerPaths[strMethodName];
-							MethodInfo[] methods = oCtrl.GetType().GetMethods();
-							foreach(MethodInfo method in methods)
-							{
-								object[] customAttribs = method.GetCustomAttributes(typeof(RoutingAttribute), true);
-								if(customAttribs.Length < 1)
-									continue;
-
-								// ATTENTION: Assume one RoutingAttribute per method!
-								var oRoutingAttrib = customAttribs[0] as RoutingAttribute;
-								if(oRoutingAttrib.Path.Equals(strMethodName))
-								{
-									if(oRoutingAttrib.Method.Method.Equals(oRequest.HttpMethod))
-									{
-										// Method/Controller found!
-										oCtrlMethod = method;
-
-										// Check if user is authorized to use this method
-										if(oUser.IsInRole(oRoutingAttrib.Role))
-										{
-											// Create arguments
-											ParameterInfo[] paramsInfo = oCtrlMethod.GetParameters();
-											object[] methodParams = new object[paramsInfo.Length];
-											for(int i=0; i != paramsInfo.Length; i++)
-											{
-												if(i == 0 && strParam != null)
-												{
-													methodParams[i] = Convert.ChangeType(strParam, paramsInfo[i].ParameterType);
-												}
-												else if(i < dictParamValues.AllKeys.Length)
-												{
-													if(dictParamValues.AllKeys.Contains(paramsInfo[i].Name))
-														methodParams[i] = Convert.ChangeType(dictParamValues[paramsInfo[i].Name], paramsInfo[i].ParameterType);
-													else   // Parameter not given in request!
-													{
-														methodParams = null;
-														ctx.Response.StatusCode = (int) HttpStatusCode.BadRequest;
-														break;
-													}
-													continue;
-												}
-												else if(string.IsNullOrEmpty(strBody) == false)
-												{
-														// Json data?
-														if(oRequest.ContentType != null && oRequest.ContentType.Contains("application/json"))
-														{
-															try
-															{
-																methodParams[i] = JsonConvert.DeserializeObject(strBody, paramsInfo[i].ParameterType);
-															}
-															catch(Exception)
-															{
-																methodParams = null;
-																ctx.Response.StatusCode = (int) HttpStatusCode.BadRequest;
-																break;
-															}
-														}
-														else
-															methodParams[i] = strBody;
-												}
-												else  // Method needs more arguments than given! => Send BadRequest error
-												{
-													ctx.Response.StatusCode = (int) HttpStatusCode.BadRequest;
-													methodParams = null;
-												}
-											}
-
-											if(methodParams != null)  // methodParams == null indicates bad request (see above)
-											{
-												// Execute method with arguments and creating response
-												try
-												{
-													Thread.SetData(Thread.GetNamedDataSlot("Response"), ctx.Response);
-													Thread.SetData(Thread.GetNamedDataSlot("Request"), ctx.Request);
-
-													method.Invoke(oCtrl, methodParams);
-												}
-												catch(Exception)
-												{
-													ctx.Response.StatusCode = (int) HttpStatusCode.InternalServerError;
-												}
-											}
-										}
-										else   // Access denied!
-											ctx.Response.StatusCode = (int) HttpStatusCode.Unauthorized;	
-
-										break;
-									}
-								}
-							}
-						}
-								
-						// Send error if no controller matched
+						MethodInfo oCtrlMethod = findMethod(strMethodName, ref ctx);
 						if(oCtrlMethod == null)
-							ctx.Response.StatusCode = (int) HttpStatusCode.NotFound;
+							return;
+
+						// Execute method
+						execMethod(oCtrlMethod, strMethodName, strParam, strBody, dictParamValues, ref ctx);
 					}
 					catch(Exception)
 					{
