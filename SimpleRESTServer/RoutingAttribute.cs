@@ -28,6 +28,10 @@ namespace SimpleRESTServer
 				Method = HttpMethod.Put;
 			else if (a_strMethod.Equals("DELETE"))
 				Method = HttpMethod.Delete;
+			else if (a_strMethod.Equals("TRACE"))
+				Method = HttpMethod.Trace;
+			else if (a_strMethod.Equals("HEAD"))
+				Method = HttpMethod.Head;
 			else
 				throw new ArgumentException();
 		}
