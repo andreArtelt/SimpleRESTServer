@@ -83,7 +83,7 @@ namespace SimpleRESTServer
 			return dictResult;
 		}
 
-		protected User handleAuthentication(ref HttpListenerRequest a_oRequest, ref HttpListenerContext ctx)
+		protected virtual User handleAuthentication(ref HttpListenerRequest a_oRequest, ref HttpListenerContext ctx)
 		{
 			User oUser = null;
 			
@@ -120,7 +120,7 @@ namespace SimpleRESTServer
 			return oUser;
 		}
 
-		protected void parseRequest(ref HttpListenerRequest a_oRequest, ref string a_strMethodName, ref string a_strParam, ref NameValueCollection a_dictParamValues, ref string a_strBody)
+		protected virtual void parseRequest(ref HttpListenerRequest a_oRequest, ref string a_strMethodName, ref string a_strParam, ref NameValueCollection a_dictParamValues, ref string a_strBody)
 		{
 			a_strMethodName = a_oRequest.Url.LocalPath;
 			a_strParam = null;
@@ -144,7 +144,7 @@ namespace SimpleRESTServer
 		/// Allows or denies CORS (Overwrite this method to customize the behaviour).
 		/// </summary>
 		/// <param name="a_oContext">Http context.</param>
-		protected void allowCORS(ref HttpListenerContext a_oContext)
+		protected virtual void allowCORS(ref HttpListenerContext a_oContext)
 		{
 			a_oContext.Response.Headers.Add("Access-Control-Allow-Origin", "*");
 		}
@@ -154,7 +154,7 @@ namespace SimpleRESTServer
 		/// </summary>
 		/// <returns>Returna <c>true</c> if no further handling of this request is required, <c>false</c> otherwise.</returns>
 		/// <param name="a_oContext">Http context.</param>
-		protected bool handleOptionsRequest(ref HttpListenerContext a_oContext)
+		protected virtual bool handleOptionsRequest(ref HttpListenerContext a_oContext)
 		{
 			a_oContext.Response.Headers.Add("Access-Control-Allow-Methods", "POST, GET, PUT, DELETE, OPTIONS");	// Allow "everything" by default
 			a_oContext.Response.Headers.Add("Access-Control-Request-Headers", "X-PINGOTHER, Content-Type");
@@ -168,7 +168,7 @@ namespace SimpleRESTServer
 		/// <returns>The method (might be null if no suiteable method has been found. In this case appropriate response status codes are set!).</returns>
 		/// <param name="a_strMethodName">Name/Path of the requested method.</param>
 		/// <param name="a_oContext">Http context.</param>
-		protected MethodInfo findMethod(string a_strMethodName, ref HttpListenerContext a_oContext)
+		protected virtual MethodInfo findMethod(string a_strMethodName, ref HttpListenerContext a_oContext)
 		{
 			if(m_dictControllerPaths.ContainsKey(a_strMethodName))
 			{
@@ -213,7 +213,7 @@ namespace SimpleRESTServer
 		/// <param name="a_strBody">Body of request (parsed in <see cref="parseRequest"/>).</param>
 		/// <param name="a_dictParamValues">Collection of parameter and their values (parsed in <see cref="parseRequest"/>).</param>
 		/// <param name="a_oContext">Http context.</param>
-		protected void execMethod(MethodInfo a_oMethod, string a_strMethodName, string a_strParam, string a_strBody, NameValueCollection a_dictParamValues, ref HttpListenerContext a_oContext)
+		protected virtual void execMethod(MethodInfo a_oMethod, string a_strMethodName, string a_strParam, string a_strBody, NameValueCollection a_dictParamValues, ref HttpListenerContext a_oContext)
 		{
 			// Create arguments
 			ParameterInfo[] paramsInfo = a_oMethod.GetParameters();
