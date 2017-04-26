@@ -104,6 +104,78 @@ namespace SimpleRESTServer
 		}
 
 		/// <summary>
+		/// Sets response status code to forbidden.
+		/// </summary>
+		public void Forbidden()
+		{
+			Response.StatusCode = (int) HttpStatusCode.Forbidden;
+		}
+
+		/// <summary>
+		/// Sets response status code to method not allowed.
+		/// </summary>
+		public void MethodNotAllowed()
+		{
+			Response.StatusCode = (int) HttpStatusCode.MethodNotAllowed;
+		}
+
+		/// <summary>
+		/// Sets response status code to not implemented.
+		/// </summary>
+		public void NotImplemented()
+		{
+			Response.StatusCode = (int) HttpStatusCode.NotImplemented;
+		}
+
+		/// <summary>
+		/// Sets response status code to service unavailable.
+		/// </summary>
+		public void ServiceUnavailable()
+		{
+			Response.StatusCode = (int) HttpStatusCode.ServiceUnavailable;
+		}
+
+		/// <summary>
+		/// Sets response status code to accepted.
+		/// </summary>
+		public void Accepted()
+		{
+			Response.StatusCode = (int) HttpStatusCode.Accepted;
+		}
+
+		/// <summary>
+		/// Sets response status code to not modified.
+		/// </summary>
+		public void NotModified()
+		{
+			Response.StatusCode = (int) HttpStatusCode.NotModified;
+		}
+
+		/// <summary>
+		/// Sets response status code to request timeout.
+		/// </summary>
+		public void RequestTimeout()
+		{
+			Response.StatusCode = (int) HttpStatusCode.RequestTimeout;
+		}
+
+		/// <summary>
+		/// Sets response status code to not acceptable.
+		/// </summary>
+		public void NotAcceptable()
+		{
+			Response.StatusCode = (int) HttpStatusCode.NotAcceptable;
+		}
+
+		/// <summary>
+		/// Sets response status code to created.
+		/// </summary>
+		public void Created()
+		{
+			Response.StatusCode = (int) HttpStatusCode.Created;
+		}
+
+		/// <summary>
 		/// Sets response status code to ok.
 		/// </summary>
 		public void Ok()
